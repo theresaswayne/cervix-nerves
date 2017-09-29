@@ -1,7 +1,7 @@
 // @File(label = "Select VSI file") vsipath
 // @File(label = "Output directory", style = "directory") output
 
-// cervix_preprocess.ijm
+// cervix_preprocess_tiff.ijm
 
 // Use for cervical whole-slide VSI images where colors are not rendered properly
 // Swaps the red and blue channels, subtracts background, corrects color balance, and corrects scale
@@ -42,8 +42,8 @@ function makeTiles(file, divisions, outputPath){
 	    close();
 	    }
 	  }
-	selectImage(largeID);
-	close();
+	//selectImage(largeID);
+	//close();
 }
 
 // get image name
