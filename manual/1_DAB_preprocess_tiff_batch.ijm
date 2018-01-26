@@ -1,27 +1,30 @@
-// @File(label = "Select input file") input
+// @File(label = "Input directory", style = "directory") input
 // @File(label = "Output directory", style = "directory") output
+// @String(label = "File extension", default=".tif") extension
+// @String(label = "What is your favorite color?") foo
 
-// cervix_preprocess_tiff.ijm
+// Note: DO NOT DELETE OR MOVE THE FIRST FEW LINES -- they supply essential parameters.
 
-// Use for cervical whole-slide TIF images
-// Subtracts background, corrects color balance, and corrects scale
-// Saves the RGB tiff of the whole area
+// 1_DAB_preprocess_tiff_batch.ijm
+// ImageJ/Fiji macro
+// Theresa Swayne, tcs6@cumc.columbia.edu, 2018
+
+// Use for whole-slide TIF images of hematoxylin and DAB
+// Subtracts background and corrects color balance
 // Splits colors using "H DAB" scheme and saves constituent colors
+// Corrects scale
 
-// Usage: Open the tiff image, crop it (not necessary to save), and run the macro
+// Usage: Run the macro.
 
 // get image name
 id = getImageID();
 origTitle = getTitle();
 
 name = File.getName(input);
-dotIndex = indexOf(name, ".");
-basename = substring(name, 0, dotIndex);
-print("basename is",basename);
-
-// convert to RGB format
-Stack.setDisplayMode("composite");
-run("Stack to RGB");
+//dotIndex = indexOf(name, ".");
+//basename = substring(name, 0, dotIndex);
+basename = File.nameWithoutExtension;
+rgbName = basename+"_corrected.tif";
 
 // subtract background
 run("Subtract Background...", "rolling=300 light");
@@ -30,29 +33,27 @@ run("Subtract Background...", "rolling=300 light");
 run("BIOP SimpleColorBalance");
 
 // save RGB corrected image
-saveAs ("tiff", output+File.separator+basename+".tif");
+saveAs ("tiff", output+File.separator+rgbName);
 
-//close original
-//selectWindow(origTitle+" (RGB)");
 selectImage(id);
 close();
 
 // split colors
-selectWindow(basename+".tif");
+selectWindow(rgbName);
 run("Colour Deconvolution", "vectors=[H DAB] hide");
 
 // close Colour 3 image -- not needed
-selectWindow(basename+".tif-(Colour_3)");
+selectWindow(rgbName+"-(Colour_3)");
 close();
 
 // save hematoxylin image -- will be used to measure total area
-selectWindow(basename+".tif-(Colour_1)");
+selectWindow(rgbName+"-(Colour_1)");
 run("Set Scale...", "distance=1 known=2.5595 pixel=1 unit=um");
 saveAs ("tiff", output+File.separator+basename+"_H.tif");
 close();
 
 // save DAB image -- will be used to detect antibody staining
-selectWindow(basename+".tif-(Colour_2)");
+selectWindow(rgbName+"-(Colour_2)");
 run("Set Scale...", "distance=1 known=2.5595 pixel=1 unit=um");
 saveAs ("tiff", output+File.separator+basename+"_DAB.tif");
 
