@@ -10,30 +10,49 @@
 // ImageJ/Fiji macro
 // Theresa Swayne, tcs6@cumc.columbia.edu, 2018
 
-// Use for whole-slide TIF images of hematoxylin and DAB
-// Subtracts background and corrects color balance
-// Splits colors using "H DAB" scheme and saves constituent colors
-// Corrects scale
+// Input: a folder of RGB TIF images of hematoxylin and DAB
+// Corrects image illumination, color, and scale.
+// Deconvolves colors using "H DAB" scheme.
+// Output: 	1) RGB TIF corrected for background, color balance, and scale
+//     		2) grayscale TIFs of hematoxylin and DAB components
 
 // Usage: Run the macro.
 
 // setup
 
-// TODO: 4x: 2.5595 pix/um
-// 20x: 1.9535 pixels/um
-// other (only if other AND not 0) - otherwise throw a warning: 1/manPixSize
-
 setBatchMode(true);
 
 n = 0; // number of images
+
+// determine scale factor
+if (mag=="4x") {
+	pixPerMicron = 2.5595;
+	print("4x objective; scale",pixPerMicron,"pixels per micron");
+	}
+else if (mag == "20x") {
+	pixPerMicron = 1.9535;
+	print("20x objective; scale",pixPerMicron,"pixels per micron");
+	}
+else if (mag=="other" && manPixSize != 0) {
+	pixPerMicron = 1/manPixSize;
+	print("Manual pixel size entered; scale",pixPerMicron,"pixels per micron");
+	}
+else {
+	showMessage("No scale selected! Please re-run the macro and provide an objective lens or scale.");
+	exit;
+	}
+      
 processFolder(input); // starts the actual processing 
+
+setBatchMode(false); 
+print("Finished processing",n,"images.");
 
 function processFolder(dir1) 
 	{ // recursively goes through folders and finds images that match file suffix
 	list = getFileList(dir1);
 	for (i=0; i<list.length; i++) 
 		{
-		// print("processing",list[i]);
+		// print("Preparing to process",list[i]);
 		if (endsWith(list[i], "/"))
 			processFolder(dir1++File.separator+list[i]);
 		else if (endsWith(list[i], suffix))
@@ -44,8 +63,9 @@ function processFolder(dir1)
 function processImage(dir1, name) 
 	{ // processes images found by processFolder
 	open(dir1+File.separator+name);
-	print(n++, name); // log of image number and names
-		
+	n++;
+	print("Processing image", n, ":", name); // log of image number and names
+
 	// get image name
 	id = getImageID();
 	origTitle = getTitle();
@@ -64,30 +84,26 @@ function processImage(dir1, name)
 	
 	// save RGB corrected image
 	saveAs ("tiff", output+File.separator+rgbName);
-	
-	selectImage(id);
-	close();
-	
+		
 	// split colors
 	selectWindow(rgbName);
 	run("Colour Deconvolution", "vectors=[H DAB] hide");
 	
-	// close Colour 3 image -- not needed
-	selectWindow(rgbName+"-(Colour_3)");
-	close();
-	
 	// save hematoxylin image -- will be used to measure total area
 	selectWindow(rgbName+"-(Colour_1)");
-	run("Set Scale...", "distance=1 known=2.5595 pixel=1 unit=um"); // TODO: update with scale info
+	run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um");
 	saveAs ("tiff", output+File.separator+basename+"_H.tif");
-	close();
-	
+
 	// save DAB image -- will be used to detect antibody staining
 	selectWindow(rgbName+"-(Colour_2)");
-	run("Set Scale...", "distance=1 known=2.5595 pixel=1 unit=um");  // TODO: update with scale info
+	run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um");
 	saveAs ("tiff", output+File.separator+basename+"_DAB.tif");
-
-
+	
+	// close any images remaining open
+	while (nImages > 0) { // works on any number of channels
+		close();
+		}
+		
 	} // end processImage
 
 
