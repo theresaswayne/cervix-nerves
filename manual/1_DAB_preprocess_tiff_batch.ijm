@@ -19,7 +19,7 @@
 // Usage: Run the macro.
 
 // setup
-
+startTime = getTime();
 setBatchMode(true);
 
 n = 0; // number of images
@@ -45,7 +45,9 @@ else {
 processFolder(input); // starts the actual processing 
 
 setBatchMode(false); 
-print("Finished processing",n,"images.");
+endTime = getTime();
+elapsedTime = (endTime-startTime)/1000;
+print("Finished processing",n,"images in",elapsedTime,"seconds.");
 
 function processFolder(dir1) 
 	{ // recursively goes through folders and finds images that match file suffix
@@ -82,7 +84,7 @@ function processImage(dir1, name)
 	// correct color
 	run("BIOP SimpleColorBalance");
 	
-	// save RGB corrected image
+	// save RGB corrected image, keeping original scale
 	saveAs ("tiff", output+File.separator+rgbName);
 		
 	// split colors
@@ -91,12 +93,12 @@ function processImage(dir1, name)
 	
 	// save hematoxylin image -- will be used to measure total area
 	selectWindow(rgbName+"-(Colour_1)");
-	run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um");
+	run("Set Scale...", "distance=1 known=&pixPerMicron pixel=1 unit=um");
 	saveAs ("tiff", output+File.separator+basename+"_H.tif");
 
 	// save DAB image -- will be used to detect antibody staining
 	selectWindow(rgbName+"-(Colour_2)");
-	run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um");
+	run("Set Scale...", "distance=1 known=&pixPerMicron pixel=1 unit=um");
 	saveAs ("tiff", output+File.separator+basename+"_DAB.tif");
 	
 	// close any images remaining open
