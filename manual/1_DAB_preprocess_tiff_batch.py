@@ -1,6 +1,6 @@
-# @File(label = "Input directory", style = "directory") input
-# @File(label = "Output directory", style = "directory") output
-# @String(label = "File suffix", value = ".tif") suffix
+# @File(label = "Input directory", style = "directory") inputDir
+# @File(label = "Output directory", style = "directory") outputDir
+# @String(label = "File suffix", description = "Leave blank for no filtering", value = ".tif") suffix
 # @String(label = "Objective Lens", choices={"4x", "20x", "Other"}, style="listBox") mag
 # @String(label = "If Other, pixel size in um", value = "0") manPixSize
 
@@ -18,91 +18,90 @@
 
 # Usage: Run the macro.
 
-# setup
+# TODO: Batch mode? Replace IJ.run commands for speed?
 
-setBatchMode(true);
+# SETUP
 
-n = 0; # number of images
+import os, sys, time
+from java.lang import Double, Integer
+from ij import IJ, ImagePlus, ImageStack, Prefs
+from ij.process import ImageProcessor, ImageConverter, LUT, ColorProcessor
+from ij.io import FileSaver
+
+startTime = time.clock()
+n = 0 # number of images
+outputDir = str(outputDir)+os.path.sep
+
+# get list of image files
+inputDir = str(inputDir)
+fileList = []
+for fName in os.listdir(inputDir):
+	if fName.endswith(suffix):
+		fileList.append(os.path.join(inputDir,fName))
+if len(fileList) < 1:
+	raise Exception("No images found in %s" % inputDir)
 
 # determine scale factor
-if (mag=="4x") {
-	pixPerMicron = 2.5595;
-	print("4x objective; scale",pixPerMicron,"pixels per micron");
-	}
-else if (mag == "20x") {
-	pixPerMicron = 1.9535;
-	print("20x objective; scale",pixPerMicron,"pixels per micron");
-	}
-else if (mag=="other" && manPixSize != 0) {
-	pixPerMicron = 1/manPixSize;
-	print("Manual pixel size entered; scale",pixPerMicron,"pixels per micron");
-	}
-else {
-	showMessage("No scale selected! Please re-run the macro and provide an objective lens or scale.");
-	exit;
-	}
-      
-processFolder(input); # starts the actual processing 
+# TODO: fix user messages
+if (mag=="4x"):
+	pixPerMicron = 2.5595
+	#IJ.log("4x objective scale",pixPerMicron,"pixels per micron")
+elif (mag == "20x"):
+	pixPerMicron = 1.9535
+	#IJ.log("20x objective scale",pixPerMicron,"pixels per micron")
+elif (mag == "other" & manPixSize != "0"):
+	pixPerMicron = 1/float(manPixSize)
+	#IJ.log("Manual pixel size entered scale",pixPerMicron,"pixels per micron")
+else: # TODO: fix this error
+	IJ.error("No scale selected! Please re-run the macro and provide an objective lens or scale.")
 
-setBatchMode(false); 
-print("Finished processing",n,"images.");
+# PROCESS IMAGES
 
-function processFolder(dir1) 
-	{ # recursively goes through folders and finds images that match file suffix
-	list = getFileList(dir1);
-	for (i=0; i<list.length; i++) 
-		{
-		# print("Preparing to process",list[i]);
-		if (endsWith(list[i], "/"))
-			processFolder(dir1++File.separator+list[i]);
-		else if (endsWith(list[i], suffix))
-			processImage(dir1, list[i]);
-		}
-	} # end processFolder
+for item in fileList:
 
-function processImage(dir1, name) 
-	{ # processes images found by processFolder
-	open(dir1+File.separator+name);
-	n++;
-	print("Processing image", n, ":", name); # log of image number and names
-
-	# get image name
-	id = getImageID();
-	origTitle = getTitle();
+	imp = IJ.openImage(item)
+	n += 1
+	IJ.showStatus("Processing file "+ str(n) +"/"+ str(len(fileList)))
+	#TODO: find this message or Write to log window
 	
-	name = File.getName(input);
-	#dotIndex = indexOf(name, ".");
-	#basename = substring(name, 0, dotIndex);
-	basename = File.nameWithoutExtension;
-	rgbName = basename+"_corrected.tif";
+	# get image name
+	origFile = imp.getTitle()	
+	titleWithoutExtension = os.path.splitext(origFile)[0]
+	rgbName = titleWithoutExtension+"_corrected.tif"
 	
 	# subtract background
-	run("Subtract Background...", "rolling=300 light");
-	
+	IJ.run(imp, "Subtract Background...", "rolling=300 light")
+
+	# TODO: FIX ERROR: IJ.run(imp, "BIOP SimpleColorBalance") TypeError: run(): 1st arg can't be coerced to String
+
 	# correct color
-	run("BIOP SimpleColorBalance");
+	IJ.run(imp, "BIOP SimpleColorBalance")
 	
 	# save RGB corrected image
-	saveAs ("tiff", output+File.separator+rgbName);
+	IJ.saveAsTiff(imp, outputDir+rgbName)
 		
 	# split colors
-	selectWindow(rgbName);
-	run("Colour Deconvolution", "vectors=[H DAB] hide");
+	IJ.selectWindow(rgbName)
+	IJ.run(rgbName, "Colour Deconvolution", "vectors=[H DAB] hide")
 	
 	# save hematoxylin image -- will be used to measure total area
-	selectWindow(rgbName+"-(Colour_1)");
-	run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um");
-	saveAs ("tiff", output+File.separator+basename+"_H.tif");
+	IJ.selectWindow(rgbName+"-(Colour_1)")
+	IJ.run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um")
+	IJ.saveAsTiff(outputDir+titleWithoutExtension+"_H.tif")
 
 	# save DAB image -- will be used to detect antibody staining
-	selectWindow(rgbName+"-(Colour_2)");
-	run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um");
-	saveAs ("tiff", output+File.separator+basename+"_DAB.tif");
+	IJ.selectWindow(rgbName+"-(Colour_2)")
+	IJ.run("Set Scale...", "distance=1 known="+pixPerMicron+" pixel=1 unit=um")
+	IJ.saveAsTiff(outputDir+titleWithoutExtension+"_DAB.tif")
 	
 	# close any images remaining open
-	while (nImages > 0) { // works on any number of channels
-		close();
-		}
-		
-	} # end processImage
+	while nImages > 0: # works on any number of channels
+		IJ.run(close())
 
+	# end image processing loop
+
+# FINISH UP
+
+endTime = time.clock()
+elapsedTime = endTime - startTime
+IJ.log("Finished processing "+n+" images in "+elapsedTime+" seconds.")
