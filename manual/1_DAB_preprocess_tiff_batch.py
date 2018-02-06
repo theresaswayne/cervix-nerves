@@ -3,6 +3,7 @@
 # @String(label = "File suffix", description = "Leave blank for no filtering", value = ".tif") suffix
 # @String(label = "Objective Lens", choices={"4x", "20x", "Other"}, style="listBox") mag
 # @String(label = "If Other, pixel size in um", value = "0") manPixSize
+# @LogService logService
 
 # Note: DO NOT DELETE OR MOVE THE FIRST FEW LINES -- they supply essential parameters.
 
@@ -19,6 +20,7 @@
 # Usage: Run the macro.
 
 # TODO: Batch mode? Replace IJ.run commands for speed?
+# TODO: see http://forum.imagej.net/t/per-pixels-operation-and-performance/3446/3 Java supposed to be best for "per-pixel" operations, macro is 2nd best,
 
 # SETUP
 
@@ -53,7 +55,10 @@ elif (mag == "other" & manPixSize != "0"):
 	pixPerMicron = 1/float(manPixSize)
 	#IJ.log("Manual pixel size entered scale",pixPerMicron,"pixels per micron")
 else: # TODO: fix this error
-	IJ.error("No scale selected! Please re-run the macro and provide an objective lens or scale.")
+	# IJ.error("No scale selected! Please re-run the macro and provide an objective lens or scale.")
+	logService.warn("No scale selected! Please re-run the macro and provide an objective lens or scale.")
+
+
 
 # PROCESS IMAGES
 
