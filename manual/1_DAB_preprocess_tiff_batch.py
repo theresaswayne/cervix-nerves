@@ -4,6 +4,7 @@
 # @String(label = "Objective Lens", choices={"4x", "20x", "Other"}, style="listBox") mag
 # @String(label = "If Other, pixel size in um", value = "0") manPixSize
 # @LogService logService
+# @StatusService ss
 
 # Note: DO NOT DELETE OR MOVE THE FIRST FEW LINES -- they supply essential parameters.
 
@@ -29,6 +30,10 @@ from java.lang import Double, Integer
 from ij import IJ, ImagePlus, ImageStack, Prefs
 from ij.process import ImageProcessor, ImageConverter, LUT, ColorProcessor
 from ij.io import FileSaver
+from ij import WindowManager as WM
+import ij.process.*
+import ij.measure.Measurements
+import ij.gui.Roi
 
 startTime = time.clock()
 n = 0 # number of images
@@ -51,14 +56,15 @@ if (mag=="4x"):
 elif (mag == "20x"):
 	pixPerMicron = 1.9535
 	#IJ.log("20x objective scale",pixPerMicron,"pixels per micron")
-elif (mag == "other" & manPixSize != "0"):
+elif ((mag == "other") & (manPixSize != "0")):
 	pixPerMicron = 1/float(manPixSize)
 	#IJ.log("Manual pixel size entered scale",pixPerMicron,"pixels per micron")
-else: # TODO: fix this error
-	# IJ.error("No scale selected! Please re-run the macro and provide an objective lens or scale.")
-	logService.warn("No scale selected! Please re-run the macro and provide an objective lens or scale.")
+else: # TODO: fix this error with a message to user plus exit
+	raise Exception("No scale selected! Please re-run the macro and provide an objective lens or scale.")
 
-
+def ColorBalance(imp):
+	''' translation of BIOP Simple Color Balance bsh script'''
+	return
 
 # PROCESS IMAGES
 
@@ -69,10 +75,12 @@ for item in fileList:
 	IJ.showStatus("Processing file "+ str(n) +"/"+ str(len(fileList)))
 	#TODO: find this message or Write to log window
 	
-	# get image name
+	# get image name and ID
 	origFile = imp.getTitle()	
 	titleWithoutExtension = os.path.splitext(origFile)[0]
 	rgbName = titleWithoutExtension+"_corrected.tif"
+	ids = WM.getIDList()
+	win = WM.getImage(ids[-1]).getWindow()
 	
 	# subtract background
 	IJ.run(imp, "Subtract Background...", "rolling=300 light")
@@ -80,7 +88,7 @@ for item in fileList:
 	# TODO: FIX ERROR: IJ.run(imp, "BIOP SimpleColorBalance") TypeError: run(): 1st arg can't be coerced to String
 
 	# correct color
-	IJ.run(imp, "BIOP SimpleColorBalance")
+	ColorBalance(imp)
 	
 	# save RGB corrected image
 	IJ.saveAsTiff(imp, outputDir+rgbName)
